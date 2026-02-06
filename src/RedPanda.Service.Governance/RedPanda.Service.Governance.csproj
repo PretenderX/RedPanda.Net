@@ -8,7 +8,7 @@
 		<PackageTags>MicroService</PackageTags>
 		<RepositoryType>git</RepositoryType>
 		<PackageLicenseFile>LICENSE.txt</PackageLicenseFile>
-		<Version>1.5.2</Version>
+		<Version>1.5.3</Version>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<EmbedUntrackedSources>true</EmbedUntrackedSources>
 		<IncludeSymbols>true</IncludeSymbols>

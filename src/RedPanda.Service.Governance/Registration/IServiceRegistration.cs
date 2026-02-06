@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace RedPanda.Service.Governance.Registration
 {
-    public interface IServiceRegistration : IDisposable
+    public interface IServiceRegistration
     {
         void RegisterSelf(Action<Dictionary<string, string>> appendMetaAction = null);
 

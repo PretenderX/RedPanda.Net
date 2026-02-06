@@ -2,17 +2,18 @@
 using RedPanda.Service.Governance.Common;
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace RedPanda.Service.Governance.Registration
 {
     public class ServiceRegistration : IServiceRegistration
     {
-        private readonly IDictionary<string, string> serviceIds;
+        private readonly IConsulClient _consulClient;
 
-        public ServiceRegistration()
+        public ServiceRegistration(IConsulClient consulClient)
         {
-            serviceIds = new Dictionary<string, string>();
+            _consulClient = consulClient;
         }
 
         public void RegisterSelf(Action<Dictionary<string, string>> appendMetaAction = null)
@@ -49,55 +50,34 @@ namespace RedPanda.Service.Governance.Registration
                 serviceCheck.DeregisterCriticalServiceAfter = TimeSpan.FromSeconds(serviceDescription.DeregisterCriticalServiceAfter.Value);
             }
 
-            var serviceNames = new List<string> { serviceDescription.ServiceName };
-
-            if (serviceDescription.ServiceAliases != null && serviceDescription.ServiceAliases.Contains(","))
+            foreach (var serviceName in serviceDescription.RegistrationServiceNames)
             {
-                foreach (var serviceAlias in serviceDescription.ServiceAliases.Split(','))
+                var serviceRegistration = new AgentServiceRegistration
                 {
-                    var trimmedAlias = serviceAlias.Trim();
+                    Checks = new[] { serviceCheck },
+                    ID = Guid.NewGuid().ToString(),
+                    Name = serviceName,
+                    Address = serviceDescription.ServiceHost,
+                    Port = serviceDescription.ServicePort,
+                    Meta = serviceMeta,
+                    Tags = new[] { serviceDescription.ServiceSpace, $"urlprefix-/{serviceName}" },
+                };
 
-                    if (!string.IsNullOrEmpty(trimmedAlias))
-                    {
-                        serviceNames.Add(trimmedAlias);
-                    }
+                await DeregisterServiceAsync(serviceName, serviceDescription);
+
+                var result = await _consulClient.Agent.ServiceRegister(serviceRegistration);
+
+                if (result.StatusCode == System.Net.HttpStatusCode.OK)
+                {
+                    Console.WriteLine($"注册服务成功: {serviceRegistration.ID}");
+                    
+                }
+                else
+                {
+                    Console.WriteLine($"注册服务失败: {serviceRegistration.ID}");
                 }
             }
 
-            using (var consulClient = ConsulClientFactory.Create())
-            {
-                foreach (var serviceName in serviceNames)
-                {
-                    var fullServiceName = string.Format(serviceDescription.FullServiceNameFormat, serviceDescription.ServiceSpace, serviceName);
-                    var serviceRegistration = new AgentServiceRegistration
-                    {
-                        Checks = new[] { serviceCheck },
-                        ID = Guid.NewGuid().ToString(),
-                        Name = fullServiceName,
-                        Address = serviceDescription.ServiceHost,
-                        Port = serviceDescription.ServicePort,
-                        Meta = serviceMeta,
-                        Tags = new[] { serviceDescription.ServiceSpace, $"urlprefix-/{fullServiceName}" },
-                    };
-                    var existingServices = (await consulClient.Catalog.Service(serviceRegistration.Name)).Response;
-
-                    foreach (var service in existingServices)
-                    {
-                        var registeredServiceAddress = service.GetRegisteredServiceAddress();
-                        if (registeredServiceAddress == serviceDescription.ServiceAddress)
-                        {
-                            await consulClient.Agent.ServiceDeregister(service.ServiceID);
-                        }
-                    }
-
-                    var result = await consulClient.Agent.ServiceRegister(serviceRegistration);
-
-                    if (result.StatusCode == System.Net.HttpStatusCode.OK)
-                    {
-                        serviceIds.Add(serviceRegistration.Name, serviceRegistration.ID);
-                    }
-                }
-            }
         }
 
         public void DeregisterSelf()
@@ -107,18 +87,29 @@ namespace RedPanda.Service.Governance.Registration
 
         public async Task DeregisterSelfAsync()
         {
-            using (var consulClient = ConsulClientFactory.Create())
+            var serviceDescription = LocalServiceDescriptionProvider.Build();
+
+            foreach (var serviceName in serviceDescription.RegistrationServiceNames)
             {
-                foreach (var serviceName in serviceIds.Keys)
-                {
-                    await consulClient.Agent.ServiceDeregister(serviceIds[serviceName]);
-                }
+                await DeregisterServiceAsync(serviceName, serviceDescription);
             }
         }
 
-        public void Dispose()
+        private async Task DeregisterServiceAsync(string serviceName, ServiceDescription serviceDescription)
         {
-            DeregisterSelf();
+            var existingServices = (await _consulClient.Catalog.Service(serviceName)).Response;
+
+            foreach (var service in existingServices.Where(s => s.ServiceAddress == serviceDescription.ServiceHost && s.ServicePort == serviceDescription.ServicePort))
+            {
+                await _consulClient.Agent.ServiceDeregister(service.ServiceID);
+                await _consulClient.Catalog.Deregister(new CatalogDeregistration
+                {
+                    Node = service.Node,
+                    ServiceID = service.ServiceID
+                });
+
+                Console.WriteLine($"注销服务: {service.ServiceID}");
+            }
         }
     }
 }

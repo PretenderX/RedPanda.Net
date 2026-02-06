@@ -1,4 +1,6 @@
-﻿namespace RedPanda.Service.Governance
+﻿using System.Collections.Generic;
+
+namespace RedPanda.Service.Governance
 {
     public class ServiceDescription
     {
@@ -57,5 +59,30 @@
         public int ServiceCheckTimeout { get; set; } = ServiceGovernanceConsts.DefaultServiceCheckTimeout;
 
         public int? DeregisterCriticalServiceAfter { get; set; }
+
+        public string[] RegistrationServiceNames
+        {
+            get
+            {
+                var serviceNames = new List<string> { FullServiceName };
+
+                if (string.IsNullOrEmpty(ServiceAliases))
+                {
+                    return serviceNames.ToArray();
+                }
+
+                foreach (var serviceAlias in ServiceAliases.Split(','))
+                {
+                    var trimmedAlias = serviceAlias.Trim();
+
+                    if (!string.IsNullOrEmpty(trimmedAlias))
+                    {
+                        serviceNames.Add(string.Format(FullServiceNameFormat, ServiceSpace, trimmedAlias));
+                    }
+                }
+
+                return serviceNames.ToArray();
+            }
+        }
     }
 }

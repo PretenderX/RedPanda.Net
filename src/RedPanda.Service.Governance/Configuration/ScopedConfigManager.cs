@@ -9,11 +9,11 @@ namespace RedPanda.Service.Governance.Configuration
     public class ScopedConfigManager : IScopedConfigManager
     {
         protected readonly IJsonProvider JsonConfigProvider;
-        protected readonly IConsulClient ConsulClient;
+        protected readonly IConsulClient _consulClient;
 
-        public ScopedConfigManager()
+        public ScopedConfigManager(IConsulClient consulClient)
         {
-            ConsulClient = ConsulClientFactory.Create();
+            _consulClient = consulClient;
             JsonConfigProvider = ServiceGovernanceConfig.JsonProvider;
         }
 
@@ -36,7 +36,7 @@ namespace RedPanda.Service.Governance.Configuration
                 Value = Encoding.UTF8.GetBytes(value)
             };
 
-            var result = await ConsulClient.KV.Put(putPair);
+            var result = await _consulClient.KV.Put(putPair);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -61,7 +61,7 @@ namespace RedPanda.Service.Governance.Configuration
 
             string scopedKey = GetScopedKey(key, serviceSpace);
 
-            var result = await ConsulClient.KV.Get(scopedKey);
+            var result = await _consulClient.KV.Get(scopedKey);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -118,7 +118,7 @@ namespace RedPanda.Service.Governance.Configuration
 
             string scopedKey = GetScopedKey(key, serviceSpace);
 
-            var result = await ConsulClient.KV.Get(scopedKey);
+            var result = await _consulClient.KV.Get(scopedKey);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -149,7 +149,7 @@ namespace RedPanda.Service.Governance.Configuration
                 Value = JsonConfigProvider.SerializeToUtf8Bytes(obj, false)
             };
 
-            var result = await ConsulClient.KV.Put(putPair);
+            var result = await _consulClient.KV.Put(putPair);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -174,7 +174,7 @@ namespace RedPanda.Service.Governance.Configuration
 
             string scopedKey = GetScopedKey(key, serviceSpace);
 
-            var result = await ConsulClient.KV.Get(scopedKey);
+            var result = await _consulClient.KV.Get(scopedKey);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -201,7 +201,7 @@ namespace RedPanda.Service.Governance.Configuration
 
             string scopedKey = GetScopedKey(key, serviceSpace);
 
-            var result = await ConsulClient.KV.Get(scopedKey);
+            var result = await _consulClient.KV.Get(scopedKey);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -228,7 +228,7 @@ namespace RedPanda.Service.Governance.Configuration
 
             string scopedKey = GetScopedKey(key, serviceSpace);
 
-            var result = await ConsulClient.KV.Delete(scopedKey);
+            var result = await _consulClient.KV.Delete(scopedKey);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -249,7 +249,7 @@ namespace RedPanda.Service.Governance.Configuration
         {
             string scopedKey = GetScopedKey(path, serviceSpace);
 
-            var result = await ConsulClient.KV.DeleteTree(scopedKey);
+            var result = await _consulClient.KV.DeleteTree(scopedKey);
 
             if (result.StatusCode == System.Net.HttpStatusCode.OK)
             {
@@ -278,11 +278,6 @@ namespace RedPanda.Service.Governance.Configuration
         private static string GetScopedKey(string key, string serviceScope)
         {
             return string.IsNullOrEmpty(serviceScope) ? key : $"{serviceScope}/{key}";
-        }
-
-        public void Dispose()
-        {
-            ConsulClient.Dispose();
         }
     }
 }

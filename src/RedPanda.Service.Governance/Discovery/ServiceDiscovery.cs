@@ -7,18 +7,18 @@ namespace RedPanda.Service.Governance.Discovery
 {
     public class ServiceDiscovery : IServiceDiscovery
     {
-        protected readonly IConsulClient ConsulClient;
+        protected readonly IConsulClient _consulClient;
 
-        public ServiceDiscovery()
+        public ServiceDiscovery(IConsulClient consulClient)
         {
-            ConsulClient = ConsulClientFactory.Create();
+            _consulClient = consulClient;
         }
 
         public async Task<CatalogService[]> GetCatalogServicesAsync(string serviceName, string serviceSpace = null, string serviceTag = null)
         {
             var scopedServiceName = GetScopedServiceName(serviceName, serviceSpace);
 
-            var queryResult = string.IsNullOrEmpty(serviceTag) ? await ConsulClient.Catalog.Service(scopedServiceName) : await ConsulClient.Catalog.Service(scopedServiceName, serviceTag);
+            var queryResult = string.IsNullOrEmpty(serviceTag) ? await _consulClient.Catalog.Service(scopedServiceName) : await _consulClient.Catalog.Service(scopedServiceName, serviceTag);
 
             return queryResult.Response;
         }
@@ -34,7 +34,7 @@ namespace RedPanda.Service.Governance.Discovery
         {
             var scopedServiceName = GetScopedServiceName(serviceName, serviceSpace);
 
-            var queryResult = string.IsNullOrEmpty(serviceTag) ? await ConsulClient.Health.Service(scopedServiceName) : await ConsulClient.Health.Service(scopedServiceName, serviceTag);
+            var queryResult = string.IsNullOrEmpty(serviceTag) ? await _consulClient.Health.Service(scopedServiceName) : await _consulClient.Health.Service(scopedServiceName, serviceTag);
 
             return queryResult.Response;
         }
@@ -64,11 +64,6 @@ namespace RedPanda.Service.Governance.Discovery
         {
             var serviceFullNameFormat = LocalServiceDescriptionProvider.GetFullServiceNameFormat();
             return string.IsNullOrEmpty(serviceSpace) ? serviceName : string.Format(serviceFullNameFormat, serviceSpace, serviceName);
-        }
-
-        public void Dispose()
-        {
-            ConsulClient.Dispose();
         }
     }
 }

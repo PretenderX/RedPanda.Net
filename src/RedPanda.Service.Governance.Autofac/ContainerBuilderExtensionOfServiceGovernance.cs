@@ -9,6 +9,8 @@ namespace RedPanda.Service.Governance
     {
         public static ContainerBuilder UseServiceGovernance(this ContainerBuilder builder)
         {
+            builder.RegisterType<ConsulClientFactory>().AsImplementedInterfaces().SingleInstance();
+            builder.Register(ctx => ctx.Resolve<IConsulClientFactory>().Create()).SingleInstance();
             builder.RegisterType<ServiceRegistration>().AsImplementedInterfaces().SingleInstance();
             builder.RegisterType<ServiceDiscovery>().AsImplementedInterfaces().SingleInstance();
             builder.RegisterType<ScopedConfigManager>().AsImplementedInterfaces().SingleInstance();

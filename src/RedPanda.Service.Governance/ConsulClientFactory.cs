@@ -3,9 +3,9 @@ using System;
 
 namespace RedPanda.Service.Governance
 {
-    public static class ConsulClientFactory
+    public class ConsulClientFactory : IConsulClientFactory
     {
-        public static IConsulClient Create()
+        public IConsulClient Create()
         {
             var consulAddress = ServiceGovernanceConfig.ConsulAddress;
             var consulToken = ServiceGovernanceConfig.ConsulToken;
